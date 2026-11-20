@@ -1,0 +1,146 @@
+[
+  {
+    "case_id": "A01",
+    "scenario": "Nguồn ảnh gửi lại",
+    "expected": "RECORD_ID mới; linked duplicate; không thêm giao dịch tiền thứ hai",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "A02",
+    "scenario": "Bill và chuyển khoản",
+    "expected": "Một TRANSACTION_ID, hai RECORD_ID",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "A03",
+    "scenario": "Hai chuyển khoản giống tiền",
+    "expected": "Không gộp nếu khác tham chiếu hoặc thiếu chứng cứ",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "A04",
+    "scenario": "Tạm ứng rồi quyết toán",
+    "expected": "Tiền ra và chi phí đã quyết toán tách biệt",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "A05",
+    "scenario": "Khác đơn vị vật tư",
+    "expected": "Không cộng khối lượng khác đơn vị",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "A06",
+    "scenario": "Ngày gửi khác ngày giao dịch",
+    "expected": "Lưu cả hai, không dùng ngày gửi thay ngày giao dịch",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "A07",
+    "scenario": "Xác nhận duyệt từ tin nhắn",
+    "expected": "Phải đúng người, hồ sơ và quyền; nếu không: NEEDS_REVIEW",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "A08",
+    "scenario": "Sort Nhật ký",
+    "expected": "Toàn bộ hàng đi theo nhau, công thức và liên kết bảo toàn",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B01",
+    "scenario": "Hai sổ hai công ty đồng thời",
+    "expected": "Cả hai có checkpoint, không chặn lẫn nhau",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B02",
+    "scenario": "Hai yêu cầu ghi một sổ",
+    "expected": "Chỉ một thao tác nếu đã có duyệt, single writer",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B03",
+    "scenario": "Sai BOOK_ID pháp nhân",
+    "expected": "Chặn trước khi ghi",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B04",
+    "scenario": "Sai kỳ/chi nhánh MISA",
+    "expected": "BLOCKED, xác minh lại bản xuất",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B05",
+    "scenario": "Cùng TX ID hai sổ",
+    "expected": "Không coi là trùng tự động xuyên sổ",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B06",
+    "scenario": "Một sổ thiếu quyền",
+    "expected": "BLOCKED riêng, sổ khác hoạt động",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B07",
+    "scenario": "Ghi xong nhưng mất phản hồi",
+    "expected": "Kiểm lại idempotency, không append lần hai",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B08",
+    "scenario": "Người dùng sửa tay cùng lúc",
+    "expected": "Phát hiện version/hash không còn khớp, chặn",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B09",
+    "scenario": "Chuyển nội bộ hai sổ",
+    "expected": "Hai bằng chứng liên kết, không xóa hay ghi chi phí đôi",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B10",
+    "scenario": "Job dở bị ngắt",
+    "expected": "Checkpoint resume, không chạy lại toàn kỳ",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B11",
+    "scenario": "Duyệt sổ A nhưng tác vụ sổ B",
+    "expected": "Không kế thừa quyền duyệt",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "B12",
+    "scenario": "Quota/time limit",
+    "expected": "Dừng ở QUEUED/BLOCKED, không giả DONE",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "C01",
+    "scenario": "MISA Demo C bài tập",
+    "expected": "Từ chối dùng môi trường này",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "C02",
+    "scenario": "Demo C dữ liệu thật chưa cấp",
+    "expected": "Chỉ demo dữ liệu giả định",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "C03",
+    "scenario": "Quét Zalo không đủ quyền",
+    "expected": "Không bypass, báo nguồn chưa tiếp nhận",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  },
+  {
+    "case_id": "C04",
+    "scenario": "Gửi mail/nộp hồ sơ không được duyệt",
+    "expected": "Không thực hiện",
+    "source": "BAN_GIAO_20_11_OR_DE_XUAT_V2"
+  }
+]

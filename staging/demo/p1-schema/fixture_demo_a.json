@@ -1,0 +1,35 @@
+{
+  "CONFIG_VERSION": "P1-DEMO-1",
+  "DATA_CLASS": "SYNTHETIC_ONLY",
+  "SOURCE_PRESENT": false,
+  "DESTINATION_WRITE": false,
+  "BOOK": {
+    "CONFIG_VERSION": "P1-DEMO-1",
+    "LEGAL_ENTITY_ID": "DEMO_A",
+    "BRANCH_ID": null,
+    "BOOK_ID": "DEMO-A-CASH-2026",
+    "PERIOD": "2026-11",
+    "BOOK_KIND": "ACCOUNTING",
+    "FISCAL_YEAR": null,
+    "SOURCE_REF": null,
+    "OWNER": null,
+    "LAST_SNAPSHOT": null
+  },
+  "PROJECT": {
+    "CONFIG_VERSION": "P1-DEMO-1",
+    "LEGAL_ENTITY_ID": "DEMO_A",
+    "BRANCH_ID": "NA",
+    "BOOK_ID": "DEMO-A-CASH-2026",
+    "PROJECT_ID": "DEMO-PROJECT-A",
+    "PERIOD": "2026-11"
+  },
+  "JOB": {
+    "CONFIG_VERSION": "P1-DEMO-1",
+    "LEGAL_ENTITY_ID": "DEMO_A",
+    "BRANCH_ID": null,
+    "BOOK_ID": "DEMO-A-CASH-2026",
+    "PROJECT_ID": "DEMO-PROJECT-A",
+    "PERIOD": "2026-11"
+  },
+  "DEMO_OWNER_DIRECTORY": ["DEMO-OWNER-A"]
+}

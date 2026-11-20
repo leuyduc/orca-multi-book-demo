@@ -1,0 +1,54 @@
+{
+  "CONFIG_VERSION": "P1-DEMO-1",
+  "DATA_CLASS": "SYNTHETIC_ONLY",
+  "SOURCE_PRESENT": true,
+  "DESTINATION_WRITE": false,
+  "BOOK": {
+    "CONFIG_VERSION": "P1-DEMO-1",
+    "LEGAL_ENTITY_ID": "DEMO_B",
+    "BRANCH_ID": "B_HN",
+    "BOOK_ID": "DEMO-B-MISA-2026",
+    "PERIOD": "2026-11",
+    "BOOK_KIND": "MISA_LEDGER",
+    "FISCAL_YEAR": {
+      "ID": "DEMO-FY-2027",
+      "START": "2026-07-01",
+      "END": "2027-06-30",
+      "CONFIRMED_BY": "DEMO-OWNER-B"
+    },
+    "SOURCE_REF": {
+      "ID": "SYNREF:DEMO-B-1",
+      "LEGAL_ENTITY_ID": "DEMO_B",
+      "BRANCH_ID": "B_HN",
+      "BOOK_ID": "DEMO-B-MISA-2026",
+      "PERIOD": "2026-11",
+      "PROJECT_ID": "DEMO-PROJECT-B"
+    },
+    "OWNER": {
+      "ID": "DEMO-OWNER-B",
+      "KIND": "DEMO_ROLE"
+    },
+    "LAST_SNAPSHOT": null
+  },
+  "PROJECT": {
+    "CONFIG_VERSION": "P1-DEMO-1",
+    "LEGAL_ENTITY_ID": "DEMO_B",
+    "BRANCH_ID": "B_HN",
+    "BOOK_ID": "DEMO-B-MISA-2026",
+    "PROJECT_ID": "DEMO-PROJECT-B",
+    "PERIOD": "2026-11"
+  },
+  "JOB": {
+    "CONFIG_VERSION": "P1-DEMO-1",
+    "LEGAL_ENTITY_ID": "DEMO_B",
+    "BRANCH_ID": "B_HN",
+    "BOOK_ID": "DEMO-B-MISA-2026",
+    "PROJECT_ID": "DEMO-PROJECT-B",
+    "PERIOD": "2026-11",
+    "SOURCE_SNAPSHOT_ID": "SYN_B_001"
+  },
+  "DEMO_OWNER_DIRECTORY": [
+    "DEMO-OWNER-B",
+    "DEMO-REVIEWER-B"
+  ]
+}
