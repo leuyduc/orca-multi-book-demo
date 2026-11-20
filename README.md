@@ -21,3 +21,7 @@ Bộ staging/demo/*.ps1 có các bài kiểm thử PowerShell chạy riêng trê
 - 02_DIEU_PHOI/, 03_THIET_KE/, 04_MAU_BIEU/: nguyên tắc và mẫu
 
 Trong Orca hãy đọc AGENTS.md, rồi dùng 00_PROMPT_DAN_VAO_ORCA.txt. Chưa nghiệm thu tích hợp với hệ thống kế toán thật. Không phải sản phẩm vận hành.
+
+## Pilot thu chi DEMO (ngu?n P1 d� ni�m phong)
+
+M� Python ? staging/demo/pilot-cash x? l� ngu?n CSV gi? sau khi x�c minh P1 v� sinh d? xu?t READY_FOR_OWNER/NEEDS_REVIEW; kh�ng c� quy?n ghi s? th?t. Xem 03_THIET_KE/PILOT_CASH_ARCHITECTURE.md, 02_DIEU_PHOI/ROADMAP_CASH_PILOT.md v� staging/demo/pilot-cash/README.md d? ch?y th?.

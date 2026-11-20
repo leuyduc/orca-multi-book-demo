@@ -32,3 +32,5 @@ staging/demo/workflow-test-*/
 staging/demo/*-sandbox/
 staging/demo/m2-run-*/
 staging/demo/m3-run-*/
+staging/demo/pilot-cash/_output/
+staging/demo/.pilot-cash-e2e/
