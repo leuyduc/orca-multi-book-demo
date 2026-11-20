@@ -6,7 +6,11 @@ permissions:
   contents: read
 jobs:
   python-demo:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -16,3 +20,11 @@ jobs:
       - run: python staging/demo/p1-schema/test_schema_demo.py
       - run: python staging/demo/p1-manifest/test_manifest_demo.py
       - run: python staging/demo/workbook-misa/test_envelope_demo.py
+      - run: python staging/demo/pilot-cash/test_pilot_cash_demo.py
+  windows-workflow:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test parallel synthetic workbooks
+        shell: powershell
+        run: .\staging\demo\test_workflow.ps1
