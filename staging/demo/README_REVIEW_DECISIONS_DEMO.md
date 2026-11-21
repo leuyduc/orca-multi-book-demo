@@ -24,13 +24,31 @@ Windows commands, from repo root:
 
     python staging/demo/review_decisions_demo.py apply --book DEMO-A-CASH-2026
 
-This creates an immutable review-decisions directory (JSON + CSV audit)
-in the ignored synthetic snapshot. The original review_proposals.json does
-not change. No action can set DESTINATION_WRITE_ALLOWED true.
+This creates review-decisions/v0001/ containing JSON + CSV for the first
+simulated review. The original review_proposals.json does not change.
+No action can set DESTINATION_WRITE_ALLOWED true.
+
+To revise a decision, edit decision-request.json ONLY in this ignored DEMO
+snapshot. Set REVISION=2, PREVIOUS_AUDIT_SHA256 to the SHA-256 of the
+previous v0001/review_audit_demo.json bytes, DECIDED_AT to a later time
+with timezone, CHANGE_REASON to at least 8 characters explaining the
+change, and update the selected ACTION/NOTE. Running apply again appends
+review-decisions/v0002/, preserving v0001. Subsequent revisions work
+the same way (v0003, etc.). A repeat with the same request is idempotent;
+changed decision with missing reason, wrong previous hash/version, or
+altered historical JSON/CSV is BLOCKED.
+
+The versioned hash chain is only a best-effort local DEMO audit. It does
+not authenticate the mock reviewer, prove source ownership, or protect
+against an attacker who can rewrite the entire local history and hashes.
+A legacy single-file audit folder is rejected and requires an explicit
+separate migration if one is needed; it is not silently overwritten.
 
 Fail-closed checks: correct synthetic reviewer ID and book scope, P1 manifest
 and report SHA256, exact transaction set, timezone, version, valid review state,
-and explicit human-edited decision. APPROVE is rejected for NEEDS_REVIEW.
+and explicit human-edited decision. APPROVE is rejected for NEEDS_REVIEW
+and for any READY_FOR_OWNER proposal without verified original media,
+verified payee and verified payment reference.
 Tampered source/report/audit and wrong-book reviewer IDs are blocked.
 
 The REVIEWER_ID is just a synthetic fixture label, NOT verified identity.

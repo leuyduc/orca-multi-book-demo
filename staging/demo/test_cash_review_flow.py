@@ -119,6 +119,38 @@ class SealedCashFlowTests(unittest.TestCase):
             review.propose(book)
         self.assertFalse((bridge.ROOT / book / review.REVIEW_DIR).exists())
 
+    @unittest.skipUnless(os.name == "nt", "M3 PowerShell runs in Windows")
+    def test_tampered_amount_out_detected_independently(self):
+        book = "DEMO-A-CASH-2026"
+        bridge.prepare(book)
+        review.propose(book)
+        checkpoint = bridge.ROOT / book / "checkpoints" / f"timeline-{book}.json"
+        state = json.loads(checkpoint.read_text(encoding="utf-8-sig"))
+        a1 = next(t for t in state["transactions"] if t["transaction_id"] == "DEMO-T-A1")
+        self.assertEqual(a1["amount"], 100)
+        self.assertEqual(a1["amount_out"], 100)
+        a1["amount_out"] = 900  # keep original amount unchanged
+        checkpoint.write_text(json.dumps(state), encoding="utf-8")
+        with self.assertRaisesRegex(review.CashFlowError, "M3_AMOUNT_OUT_MISMATCH"):
+            review.propose(book)
+        self.assertFalse((bridge.ROOT / book / review.REVIEW_DIR).exists())
+
+    @unittest.skipUnless(os.name == "nt", "M3 PowerShell runs in Windows")
+    def test_tampered_settled_cost_detected_independently(self):
+        book = "DEMO-A-CASH-2026"
+        bridge.prepare(book)
+        review.propose(book)
+        checkpoint = bridge.ROOT / book / "checkpoints" / f"timeline-{book}.json"
+        state = json.loads(checkpoint.read_text(encoding="utf-8-sig"))
+        a4 = next(t for t in state["transactions"] if t["transaction_id"] == "DEMO-T-A4")
+        self.assertEqual(a4["amount"], 420)
+        self.assertEqual(a4["settled_cost"], 420)
+        a4["settled_cost"] = 421  # amount remains 420
+        checkpoint.write_text(json.dumps(state), encoding="utf-8")
+        with self.assertRaisesRegex(review.CashFlowError, "M3_SETTLED_COST_MISMATCH"):
+            review.propose(book)
+        self.assertFalse((bridge.ROOT / book / review.REVIEW_DIR).exists())
+
     @unittest.skipUnless(os.name == "nt", "PowerShell CLI on Windows")
     def test_m3_direct_without_seal_is_blocked(self):
         book = "DEMO-A-CASH-2026"
@@ -143,7 +175,7 @@ class SealedCashFlowTests(unittest.TestCase):
                "-BookId", book, "-WorkflowRoot", str(sandbox)]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
         self.assertNotEqual(proc.returncode, 0)
-        self.assertIn("LEGACY_TEST_SCOPE_FORBIDDEN", proc.stdout + proc.stderr)
+        self.assertIn("LegacyRegressionTest", proc.stdout + proc.stderr)
 
     @unittest.skipUnless(os.name == "nt", "M3 PowerShell runs in Windows")
     def test_output_mutation_is_blocked(self):

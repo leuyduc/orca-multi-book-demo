@@ -104,29 +104,92 @@ def read_evidence(book, root):
     return doc, rows, matches[0]["SHA256"]
 
 
+def checkpoint_money(value):
+    """A checkpoint amount must be a finite, nonnegative exact 2dp decimal."""
+    if isinstance(value, bool) or value is None:
+        raise CashFlowError("INVALID_M3_CHECKPOINT_MONEY")
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise CashFlowError("INVALID_M3_CHECKPOINT_MONEY") from exc
+    require(amount.is_finite() and Decimal(0) <= amount <= Decimal("1000000000000")
+            and amount.as_tuple().exponent >= -2, "INVALID_M3_CHECKPOINT_MONEY")
+    return amount
+
+
 def check_m3_output(book, root, rows, result):
-    """Don't trust amounts from persisted checkpoint without recomputing them."""
-    checkpoint = json.loads((root / "checkpoints" / f"timeline-{book}.json").read_text(encoding="utf-8-sig"))
+    """Recompute source cash movement AND settled cost independently of M3.
+
+    A bill matching a transfer may be a cost *candidate* in the review output.
+    It is NOT an M3 settled-cost event; only SETTLEMENT counts for that field.
+    Repeated evidence bytes keep their own RECORD_ID but do not add cash.
+    """
+    checkpoint = json.loads((root / "checkpoints" / f"timeline-{book}.json")
+                            .read_text(encoding="utf-8-sig"))
     require(checkpoint.get("book_id") == book and
             checkpoint.get("period") == rows[0]["PERIOD"], "M3_CHECKPOINT_SCOPE")
     source_ids = {r["RECORD_ID"] for r in rows}
     checkpoint_records = checkpoint["records"]
     require(len(checkpoint_records) == len(rows) == result["record_count"] and
+            len({r["record_id"] for r in checkpoint_records}) == len(rows) and
             {r["record_id"] for r in checkpoint_records} == source_ids,
             "M3_RECORD_SET_MISMATCH")
+    cp_by_record = {r["record_id"]: r for r in checkpoint_records}
+    for row in rows:
+        cp = cp_by_record[row["RECORD_ID"]]
+        require(cp["transaction_id"] == row["TRANSACTION_ID"] and
+                cp["raw_sha256"] == row["RAW_SHA256"] and
+                cp["kind"] == row["KIND"] and
+                cp["evidence_ref"] == row["EVIDENCE_REF"] and
+                checkpoint_money(cp["amount"]) == money(row["AMOUNT"]),
+                "M3_RECORD_SOURCE_MISMATCH")
+
     tx_groups = defaultdict(list)
     for row in rows:
         tx_groups[row["TRANSACTION_ID"]].append(row)
-    cp_transactions = {tx["transaction_id"]: tx for tx in checkpoint["transactions"]}
-    require(set(cp_transactions) == set(tx_groups) and
-            result["transaction_count"] == len(tx_groups), "M3_TRANSACTION_SET_MISMATCH")
+    cp_list = checkpoint["transactions"]
+    cp_transactions = {tx["transaction_id"]: tx for tx in cp_list}
+    require(len(cp_list) == len(cp_transactions) == len(tx_groups) ==
+            result["transaction_count"] and set(cp_transactions) == set(tx_groups),
+            "M3_TRANSACTION_SET_MISMATCH")
     for txid, group in tx_groups.items():
         snapshot = cp_transactions[txid]
-        require(set(snapshot["record_ids"]) == {r["RECORD_ID"] for r in group},
+        require(len(snapshot["record_ids"]) == len(group) and
+                len(set(snapshot["record_ids"])) == len(group) and
+                set(snapshot["record_ids"]) == {r["RECORD_ID"] for r in group},
                 "M3_TRANSACTION_RECORD_MISMATCH")
         amounts = {money(r["AMOUNT"]) for r in group}
-        require(len(amounts) == 1 and money(snapshot["amount"]) == next(iter(amounts)),
+        require(len(amounts) == 1 and
+                checkpoint_money(snapshot["amount"]) == next(iter(amounts)),
                 "M3_AMOUNT_MISMATCH")
+        unique = {}
+        for row in group:
+            evidence_hash = row["RAW_SHA256"]
+            if evidence_hash in unique:
+                prior = unique[evidence_hash]
+                require(all(prior[f] == row[f] for f in
+                            ("TRANSACTION_ID", "EVIDENCE_REF", "KIND", "AMOUNT")),
+                        "M3_CONFLICTING_DUPLICATE")
+            else:
+                unique[evidence_hash] = row
+        kinds = [row["KIND"] for row in unique.values()]
+        require(snapshot["kinds"] == kinds, "M3_KINDS_MISMATCH")
+        pay_kinds = [kind for kind in kinds if kind in ("PAYMENT", "ADVANCE")]
+        settled_kinds = [kind for kind in kinds if kind == "SETTLEMENT"]
+        require(len(pay_kinds) <= 1 and len(settled_kinds) <= 1,
+                "M3_MULTIPLE_CASH_MOVEMENTS")
+        expected_out = next(iter(amounts)) if pay_kinds else Decimal(0)
+        expected_settled = next(iter(amounts)) if settled_kinds else Decimal(0)
+        require(checkpoint_money(snapshot["amount_out"]) == expected_out,
+                "M3_AMOUNT_OUT_MISMATCH")
+        require(checkpoint_money(snapshot["settled_cost"]) == expected_settled,
+                "M3_SETTLED_COST_MISMATCH")
+        # Advance link cannot be invented in a persisted checkpoint.
+        related = {row.get("RELATED_ADVANCE_ID", "") for row in unique.values()
+                   if row["KIND"] == "SETTLEMENT"}
+        require(len(related) <= 1 and snapshot["related_advance_id"] ==
+                (next(iter(related)) if related else ""),
+                "M3_ADVANCE_LINK_MISMATCH")
     return tx_groups
 
 
@@ -161,7 +224,22 @@ def classify_tx(txid, events):
         reason = "PAYMENT_MISSING_BILL"
     elif len(bills) == 1 and len(unique) == 1:
         reason = "BILL_MISSING_PAYMENT"
+    # csv KIND and matching amounts are only a *structured precheck*.
+    # There is no original image, payee, bank reference, or payment context
+    # in this fixture, so BUSINESS APPROVAL can NEVER follow automatically.
+    required_checks = ["ORIGINAL_RECEIPT_IMAGE", "PAYEE_IDENTITY",
+                       "PAYMENT_REFERENCE", "TRANSACTION_CONTEXT"]
+    if advances:
+        required_checks.append("ADVANCE_AUTHORIZATION")
+    if settlements:
+        required_checks.append("LINKED_ADVANCE_AND_SETTLEMENT")
     return {
+        "EVIDENCE_CHECKS_REQUIRED": required_checks,
+        "SOURCE_MEDIA_VERIFIED": False,
+        "PAYEE_VERIFIED": False,
+        "PAYMENT_REFERENCE_VERIFIED": False,
+        "BUSINESS_APPROVAL_ELIGIBLE": False,
+        "STRUCTURED_MATCH_CANDIDATE": reason == "MATCHED_BILL_AND_PAYMENT",
         "TRANSACTION_ID": txid,
         "RECORD_IDS": sorted(r["RECORD_ID"] for r in events),
         "RESUBMITTED_RECORD_IDS": sorted(resubmitted),

@@ -1,4 +1,5 @@
-param([string]$BookId,[string]$WorkflowRoot,[switch]$Library,[switch]$LegacyRegressionTest)
+[CmdletBinding()]
+param([string]$BookId,[string]$WorkflowRoot,[switch]$Library)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $workflowLibrary=$Library; $workflowBook=$BookId; $workflowDirectory=$WorkflowRoot
@@ -7,21 +8,21 @@ $workflowLibrary=$Library; $workflowBook=$BookId; $workflowDirectory=$WorkflowRo
 $script:WorkflowBase=$PSScriptRoot
 
 
-function Assert-WorkflowInputGate([string]$Id,[string]$Directory,[bool]$RegressionOnly) {
-    # This check intentionally runs even when imported with -Library.
-    # Paths are synthetic-only and remain under staging/demo.
+
+function Assert-WorkflowInputGate([string]$Id,[string]$Directory) {
+    # Production-like entry has NO unsealed regression switch.
+    # This is still a DEMO and does not grant access to real books.
     $full=[IO.Path]::GetFullPath($Directory).TrimEnd('\')
     $stage=[IO.Path]::GetFullPath($script:WorkflowBase).TrimEnd('\')+'\'
     if(-not $full.StartsWith($stage,[StringComparison]::OrdinalIgnoreCase)) {throw 'WORKFLOW_OUTSIDE_DEMO'}
-    if($RegressionOnly) {
-        $leaf=[IO.Path]::GetFileName($full)
-        if($leaf -cnotmatch '^workflow-test-(sandbox|final-loss|concurrent)$') {throw 'LEGACY_TEST_SCOPE_FORBIDDEN'}
-        foreach($file in @('books.csv','queue.csv','projects.csv','evidence.csv')) {
-            if(-not (Test-Path -LiteralPath "$full/input/$file")) {throw 'LEGACY_TEST_SOURCE_MISSING'}
-        }
-        return
+    $p=[IO.DirectoryInfo]::new($full)
+    while($p -and $p.FullName.TrimEnd('\') -cne $script:WorkflowBase.TrimEnd('\')) {
+        if(-not $p.Exists -or (($p.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {throw 'WORKFLOW_REPARSE_POINT_FORBIDDEN'}
+        $p=$p.Parent
     }
-    if([IO.Path]::GetFileName($full) -cne $Id -or -not (Test-Path -LiteralPath "$full/p1_document.json") -or -not (Test-Path -LiteralPath "$full/p1-manifest/source_manifest.json")) {
+    if([IO.Path]::GetFileName($full) -cne $Id -or
+       -not (Test-Path -LiteralPath "$full/p1_document.json") -or
+       -not (Test-Path -LiteralPath "$full/p1-manifest/source_manifest.json")) {
         throw 'P1_SEALED_SNAPSHOT_REQUIRED'
     }
     $args=@("$($script:WorkflowBase)/p1-manifest/manifest_demo.py",'verify',
@@ -35,12 +36,12 @@ function Assert-WorkflowInputGate([string]$Id,[string]$Directory,[bool]$Regressi
     if($proof.status -cne 'VERIFIED_SYNTHETIC_ONLY' -or $proof.live_authorized -ne $false) {throw 'P1_VERIFICATION_BLOCKED'}
 }
 
-function Invoke-SyntheticWorkflow([string]$Id,[string]$Directory,[string]$Quota='AVAILABLE',[string]$Fault='NONE',[switch]$LegacyRegressionTest) {
+function Invoke-SyntheticWorkflow([string]$Id,[string]$Directory,[string]$Quota='AVAILABLE',[string]$Fault='NONE') {
     $Id=Get-SafeId $Id
     $base=[IO.Path]::GetFullPath($script:WorkflowBase).TrimEnd('\')+'\'
     $dir=[IO.Path]::GetFullPath($Directory).TrimEnd('\')
     if (-not $dir.StartsWith($base,[StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath "$dir/input") -or -not (Test-Path -LiteralPath "$dir/checkpoints")) { throw 'INVALID_WORKFLOW_DIRECTORY' }
-    Assert-WorkflowInputGate $Id $dir ([bool]$LegacyRegressionTest)
+    Assert-WorkflowInputGate $Id $dir
     if ($Quota -cnotin @('AVAILABLE','EXHAUSTED') -or $Fault -cnotin @('NONE','AFTER_ROUTING','AFTER_TIMELINE','AFTER_FINAL')) {throw 'INVALID_SIMULATION_OPTION'}
     $script:Root=$dir; $script:TimelineRoot=$dir
     $books=@(Import-Csv "$dir/input/books.csv" | Where-Object BOOK_ID -CEQ $Id)
@@ -81,4 +82,4 @@ function Save-WorkflowState($Path,$State) {
     $tmp="$Path.tmp"; $bak="$Path.bak"; $State | ConvertTo-Json -Depth 8 | Set-Content -Encoding UTF8 $tmp
     if(Test-Path $Path){if(Test-Path $bak){Remove-Item -LiteralPath $bak -Force};[IO.File]::Replace($tmp,$Path,$bak);Remove-Item -LiteralPath $bak -Force}else{[IO.File]::Move($tmp,$Path)}
 }
-if(-not $workflowLibrary) {if(-not $workflowBook -or -not $workflowDirectory){throw 'BookId and WorkflowRoot required'}; Invoke-SyntheticWorkflow $workflowBook $workflowDirectory -LegacyRegressionTest:$LegacyRegressionTest | ConvertTo-Json -Depth 8}
+if(-not $workflowLibrary) {if(-not $workflowBook -or -not $workflowDirectory){throw 'BookId and WorkflowRoot required'}; Invoke-SyntheticWorkflow $workflowBook $workflowDirectory | ConvertTo-Json -Depth 8}
