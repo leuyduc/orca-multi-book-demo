@@ -34,3 +34,6 @@ staging/demo/m2-run-*/
 staging/demo/m3-run-*/
 staging/demo/pilot-cash/_output/
 staging/demo/.pilot-cash-e2e/
+
+staging/demo/_p1_m3/
+staging/demo/.m3-bridge-tests-*/
