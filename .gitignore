@@ -38,3 +38,4 @@ staging/demo/.pilot-cash-e2e/
 staging/demo/_p1_m3/
 staging/demo/.m3-bridge-tests-*/
 staging/demo/.cash-flow-tests-*/
+staging/demo/.review-gate-tests-*/
