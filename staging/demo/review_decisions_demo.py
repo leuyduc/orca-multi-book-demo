@@ -24,7 +24,8 @@ ACTIONS = {"DEMO_APPROVE", "DEMO_REJECT", "DEMO_REQUEST_MORE"}
 AUDIT_COLUMNS = ["BOOK_ID", "TRANSACTION_ID", "REVIEWER_ID", "ACTION",
                  "PREVIOUS_STATUS", "NEW_STATUS", "DECIDED_AT",
                  "REVIEW_REPORT_SHA256", "NOTE", "LIVE_AUTHORIZED",
-                 "DESTINATION_WRITE_ALLOWED"]
+                 "DESTINATION_WRITE_ALLOWED", "REVISION",
+                 "PRIOR_DECISION_STATUS", "CHANGE_REASON"]
 
 
 class DemoReviewError(ValueError):
@@ -66,6 +67,9 @@ def decision_template(book):
         "REVIEW_REPORT_SHA256": sha,
         "REVIEWER_ID": expected,
         "DECIDED_AT": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "REVISION": 1,
+        "PREVIOUS_AUDIT_SHA256": None,
+        "CHANGE_REASON": None,
         "LIVE_AUTHORIZED": False,
         "DESTINATION_WRITE_ALLOWED": False,
         "DECISIONS": [
@@ -148,6 +152,11 @@ def evaluate(book, request, report, review_sha):
         if action == "DEMO_APPROVE":
             require(source["REVIEW_STATE"] == "READY_FOR_OWNER",
                     "CANNOT_APPROVE_UNREADY_TRANSACTION")
+            require(source.get("BUSINESS_APPROVAL_ELIGIBLE") is True and
+                    source.get("SOURCE_MEDIA_VERIFIED") is True and
+                    source.get("PAYEE_VERIFIED") is True and
+                    source.get("PAYMENT_REFERENCE_VERIFIED") is True,
+                    "DOCUMENT_VERIFICATION_REQUIRED")
         new_status = {
             "DEMO_APPROVE": "DEMO_APPROVED_ONLY",
             "DEMO_REJECT": "DEMO_REJECTED_ONLY",
@@ -187,35 +196,155 @@ def evaluate(book, request, report, review_sha):
     }
 
 
-def persist_once(book, decisions):
+AUDIT_REVISION_SCHEMA = "DEMO-AUDIT-CHAIN-1"
+
+
+def audit_bytes(entry):
+    return json_bytes(entry)
+
+
+def sha_bytes(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def audit_csv_bytes(events):
+    stream = io.StringIO(newline="")
+    writer = csv.DictWriter(stream, fieldnames=AUDIT_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(events)
+    return stream.getvalue().encode("utf-8-sig")
+
+
+def read_history(target, book, report_sha):
+    """Read every immutable revision, verify continuity and JSON/CSV consistency."""
+    if not target.exists():
+        return []
+    require(target.is_dir() and not target.is_symlink(), "AUDIT_OUTPUT_CHANGED")
+    names = {x.name for x in target.iterdir()}
+    require(all(name.startswith("v") and name[1:].isdigit() for name in names),
+            "AUDIT_HISTORY_STRUCTURE_CHANGED")
+    names = sorted(names)
+    require(names == [f"v{index:04d}" for index in range(1, len(names) + 1)],
+            "AUDIT_HISTORY_GAP")
+    history = []
+    prev_hash = None
+    prev_time = None
+    for rev, name in enumerate(names, 1):
+        folder = target / name
+        require(folder.is_dir() and not folder.is_symlink() and
+                {x.name for x in folder.iterdir()} ==
+                {"review_audit_demo.json", "review_audit_demo.csv"},
+                "AUDIT_HISTORY_STRUCTURE_CHANGED")
+        json_path = folder / "review_audit_demo.json"
+        csv_path = folder / "review_audit_demo.csv"
+        require(not json_path.is_symlink() and not csv_path.is_symlink(),
+                "AUDIT_OUTPUT_CHANGED")
+        raw = json_path.read_bytes()
+        entry = json.loads(raw.decode("utf-8"))
+        require(raw == audit_bytes(entry), "AUDIT_HISTORY_JSON_MODIFIED")
+        require(entry.get("AUDIT_SCHEMA_VERSION") == AUDIT_REVISION_SCHEMA and
+                entry.get("BOOK_ID") == book and
+                entry.get("REVIEW_REPORT_SHA256") == report_sha and
+                entry.get("REVISION") == rev and
+                entry.get("PREVIOUS_AUDIT_SHA256") == prev_hash and
+                entry.get("REVIEWER_IDENTITY_AUTHENTICATED") is False and
+                entry.get("DESTINATION_WRITE_ALLOWED") is False and
+                entry.get("LIVE_AUTHORIZED") is False,
+                "AUDIT_HISTORY_CHAIN_CHANGED")
+        events = entry["EVENTS"]
+        require(isinstance(events, list) and
+                all(event.get("REVISION") == rev and
+                    event.get("BOOK_ID") == book for event in events),
+                "AUDIT_HISTORY_EVENTS_CHANGED")
+        require(csv_path.read_bytes() == audit_csv_bytes(events),
+                "AUDIT_HISTORY_CSV_MODIFIED")
+        this_time = datetime.fromisoformat(entry["DECIDED_AT"])
+        require(this_time.tzinfo is not None and this_time.utcoffset() is not None,
+                "AUDIT_HISTORY_TIMESTAMP_CHANGED")
+        if prev_time is not None:
+            require(this_time > prev_time, "AUDIT_HISTORY_TIME_OUT_OF_ORDER")
+            require(isinstance(entry.get("CHANGE_REASON"), str) and
+                    8 <= len(entry["CHANGE_REASON"]) <= 500,
+                    "AUDIT_HISTORY_CHANGE_REASON_MISSING")
+        prev_time = this_time
+        prev_hash = sha_bytes(raw)
+        history.append({"entry": entry, "sha256": prev_hash})
+    return history
+
+
+def persist_once(book, decisions, request):
+    """Append one JSON+CSV revision, never replace a previous decision."""
     sandbox = bridge.safe_sandbox(book)
     target = sandbox / "review-decisions"
-    csv_buffer = io.StringIO(newline="")
-    writer = csv.DictWriter(csv_buffer, fieldnames=AUDIT_COLUMNS, lineterminator="\n")
-    writer.writeheader()
-    writer.writerows(decisions["EVENTS"])
-    payload = {
-        "review_audit_demo.json": json_bytes(decisions),
-        "review_audit_demo.csv": csv_buffer.getvalue().encode("utf-8-sig"),
-    }
-    if target.exists():
-        require(target.is_dir() and not target.is_symlink(), "AUDIT_OUTPUT_CHANGED")
-        require({p.name for p in target.iterdir()} == set(payload),
-                "AUDIT_OUTPUT_CHANGED")
-        for name, data in payload.items():
-            p = target / name
-            require(p.is_file() and not p.is_symlink() and p.read_bytes() == data,
-                    "AUDIT_OUTPUT_CHANGED")
-        return "SIMULATED_REVIEW_ALREADY_RECORDED"
-    with tempfile.TemporaryDirectory(prefix=".demo-review-pending-", dir=sandbox) as temp:
-        for name, blob in payload.items():
-            (Path(temp) / name).write_bytes(blob)
-        require(not target.exists(), "AUDIT_WRITE_RACE")
-        try:
-            os.rename(temp, target)
-        except OSError as exc:
-            raise DemoReviewError("AUDIT_WRITE_RACE") from exc
-    return "SIMULATED_REVIEW_RECORDED"
+    # A local process lock serializes simulated writers of the same book.
+    # This is not an inter-machine or real Google Sheets lock.
+    lock_path = sandbox / ".review-decisions-demo.lock"
+    try:
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError as exc:
+        raise DemoReviewError("AUDIT_BUSY") from exc
+    try:
+        os.close(lock_fd)
+        bridge.verify(book)
+        history = read_history(target, book, decisions["REVIEW_REPORT_SHA256"])
+        raw_request = json_bytes(request)
+        request_hash = sha_bytes(raw_request)
+        prior = history[-1] if history else None
+        if prior and prior["entry"]["DECISION_REQUEST_SHA256"] == request_hash:
+            return "SIMULATED_REVIEW_ALREADY_RECORDED"
+        revision = request.get("REVISION")
+        require(type(revision) is int and revision == len(history) + 1,
+                "AUDIT_REVISION_CONFLICT")
+        require(request.get("PREVIOUS_AUDIT_SHA256") ==
+                (prior["sha256"] if prior else None), "AUDIT_PREVIOUS_HASH_CONFLICT")
+        reason = request.get("CHANGE_REASON")
+        if prior is not None:
+            require(isinstance(reason, str) and 8 <= len(reason) <= 500,
+                    "AUDIT_CHANGE_REASON_REQUIRED")
+            old = {e["TRANSACTION_ID"]: (e["ACTION"], e["NOTE"])
+                   for e in prior["entry"]["EVENTS"]}
+            new = {e["TRANSACTION_ID"]: (e["ACTION"], e["NOTE"])
+                   for e in decisions["EVENTS"]}
+            require(old != new, "AUDIT_NO_EFFECTIVE_CHANGE")
+            require(datetime.fromisoformat(decisions["DECIDED_AT"]) >
+                    datetime.fromisoformat(prior["entry"]["DECIDED_AT"]),
+                    "AUDIT_DECISION_TIME_NOT_ADVANCING")
+        else:
+            require(reason is None, "AUDIT_FIRST_REVISION_REASON_FORBIDDEN")
+        old_status = {e["TRANSACTION_ID"]: e["NEW_STATUS"]
+                      for e in prior["entry"]["EVENTS"]} if prior else {}
+        events = [{**e, "REVISION": revision,
+                   "PRIOR_DECISION_STATUS": old_status.get(e["TRANSACTION_ID"], ""),
+                   "CHANGE_REASON": reason or ""}
+                  for e in decisions["EVENTS"]]
+        entry = {**decisions, "EVENTS": events,
+                 "AUDIT_SCHEMA_VERSION": AUDIT_REVISION_SCHEMA,
+                 "REVISION": revision,
+                 "PREVIOUS_AUDIT_SHA256": prior["sha256"] if prior else None,
+                 "DECISION_REQUEST_SHA256": request_hash,
+                 "CHANGE_REASON": reason,
+                 "RECORDED_AT": datetime.now().astimezone().isoformat(timespec="microseconds")}
+        if not target.exists():
+            target.mkdir()
+        dirname = f"v{revision:04d}"
+        destination = target / dirname
+        require(not destination.exists(), "AUDIT_REVISION_EXISTS")
+        with tempfile.TemporaryDirectory(prefix=".pending-review-", dir=target) as tmp:
+            (Path(tmp) / "review_audit_demo.json").write_bytes(audit_bytes(entry))
+            (Path(tmp) / "review_audit_demo.csv").write_bytes(audit_csv_bytes(events))
+            require(not destination.exists(), "AUDIT_WRITE_RACE")
+            try:
+                os.rename(tmp, destination)
+            except OSError as exc:
+                raise DemoReviewError("AUDIT_WRITE_RACE") from exc
+        # Verify complete chain after publishing a new revision.
+        require(len(read_history(target, book, decisions["REVIEW_REPORT_SHA256"])) ==
+                revision, "AUDIT_POSTWRITE_VERIFY_FAILED")
+        return ("SIMULATED_REVIEW_RECORDED" if revision == 1 else
+                "SIMULATED_REVIEW_REVISION_RECORDED")
+    finally:
+        # The local lock has no authority outside this DEMO.
+        lock_path.unlink(missing_ok=True)
 
 
 def apply(book):
@@ -227,9 +356,10 @@ def apply(book):
     decision_request = json.loads(input_file.read_text(encoding="utf-8"))
     evaluated = evaluate(book, decision_request, report, sha)
     bridge.verify(book)  # fail closed if source has changed before audit publication
-    status = persist_once(book, evaluated)
+    status = persist_once(book, evaluated, decision_request)
     return {
         "status": status, "book_id": book,
+        "audit_revision": decision_request["REVISION"],
         "counts": evaluated["COUNTS"],
         "reviewer_identity_authenticated": False,
         "destination_write_allowed": False,

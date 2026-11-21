@@ -32,14 +32,28 @@ separate RECORD_ID but is not counted twice. The ADVANCE is cash-out only,
 not settled cost; standalone settlement needs a verified advance link.
 Book B: one payment lacking bill -> NEEDS_REVIEW.
 
+A structured BILL+PAYMENT match is a candidate for owner *evidence checking*,
+NOT a business-approved transaction. The source has no original image,
+verified payee, payment reference or context; BUSINESS_APPROVAL_ELIGIBLE=false,
+SOURCE_MEDIA_VERIFIED=false, PAYEE_VERIFIED=false and
+PAYMENT_REFERENCE_VERIFIED=false. DEMO_APPROVE is blocked until those checks
+are fulfilled in a future, separately authorized flow.
+
+For G3, check_m3_output recomputes M3 amount, amount_out and settled_cost
+independently from sealed CSV rows. In this M3 fixture, PAYMENT/ADVANCE
+contributes cash out, and SETTLEMENT contributes settled cost; a BILL alone
+does not silently change the M3 settled_cost checkpoint.
+
 ## P0 direct workflow entry gate
 
 workflow.ps1 now requires a valid P1 sealed snapshot for EVERY normal
 execution path, including calls after -Library loading. It runs P1 verify
 before processing. If P1 is missing or source is modified, it blocks.
 
-- LegacyRegressionTest switch is restricted to named workflow-test-* demo
-  fixtures under staging/demo. Its only purpose is regression tests.
+- Normal workflow.ps1 has NO LegacyRegressionTest switch. Legacy M3
+  regressions run only through a separate workflow_regression_test_only.ps1
+  script, limited to named synthetic workflow-test-* fixture directories.
+  This test-only script must be excluded from any real deployment.
 - Calling the bare M3 CLI on unsealed data now fails; it is NOT equivalent
   to the verified path.
 - A test-only bypass is not security isolation. Do not use staging as a
