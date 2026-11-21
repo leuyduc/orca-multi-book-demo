@@ -14,3 +14,8 @@ M3 workflow.ps1 direct invocations require P1 seal. For synthetic regression
 tests only, -LegacyRegressionTest is restricted to workflow-test-* fixtures.
 New review-only entrypoint: staging/demo/cash_review_flow.py; it does not
 grant approval, read original photos or write any actual ledger.
+
+P3 review_decisions_demo.py is a DEMO simulator only. Its mock reviewer label
+does not authenticate any human. Actions DEMO_APPROVE/DEMO_REJECT/
+DEMO_REQUEST_MORE never create posting permissions and must never be used to
+authorize a real ledger write. Audit output is immutable per simulation.

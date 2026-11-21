@@ -38,3 +38,9 @@ See staging/demo/README_CASH_REVIEW_FLOW.md. The new
 cash_review_flow.py runs P1-sealed M3 on structured synthetic evidence
 and produces review-only staging/reconciliation files. workflow.ps1
 now requires P1 proof for normal invocations. No real approvals or writes.
+
+## P3 simulated review and audit
+
+See staging/demo/README_REVIEW_DECISIONS_DEMO.md. This is a SIMULATION of
+human decisions (with role labels but no real identity authentication).
+It never writes into the main cash book. G3 and live approval remain pending.
