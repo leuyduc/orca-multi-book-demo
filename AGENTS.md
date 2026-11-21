@@ -7,3 +7,5 @@ Không gộp nguồn, kỳ hay quyền duyệt giữa các sổ. Xác minh manif
 Được tự sửa mã, test, commit trong demo. Không tự đăng nhập tài khoản MISA/Google/Zalo hay ghi hệ thống thật.
 Không commit dữ liệu cá nhân, sao kê, chữ ký, khóa truy cập, session, cookies, thông tin khách hàng hoặc log máy.
 Không tự xoay vòng tài khoản Plus để né hạn mức. Báo cáo đúng test thực đã chạy/chưa chạy.
+
+Bộ ca thu chi D2/D3 có kết quả GIẢ chưa được người phụ trách xác nhận. READY_FOR_OWNER không phải APPROVED. Không tự ghi Nhật ký, không chép nguyên workbook hoặc file chứa thông tin cá nhân lên repo Public. Luồng M3 niêm phong dùng m3_p1_bridge.py; gọi thẳng workflow.ps1 là đường hồi quy cũ, không được coi là P1-verified.

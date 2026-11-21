@@ -21,6 +21,8 @@ jobs:
       - run: python staging/demo/p1-manifest/test_manifest_demo.py
       - run: python staging/demo/workbook-misa/test_envelope_demo.py
       - run: python staging/demo/pilot-cash/test_pilot_cash_demo.py
+      - run: python staging/demo/pilot-cash/test_case20_engine.py
+      - run: python staging/demo/test_m3_p1_bridge.py
   windows-workflow:
     runs-on: windows-latest
     steps:

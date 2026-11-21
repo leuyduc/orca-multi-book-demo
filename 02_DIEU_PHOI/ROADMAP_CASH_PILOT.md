@@ -26,3 +26,9 @@ Mục tiêu: giảm việc nhập tay, không dùng API AI trả phí và luôn 
 2. Tự làm DEMO đến điểm nghiệm thu, không hỏi thao tác kỹ thuật nhỏ.
 3. Chạy Python/PowerShell tests, tạo PR và báo kết quả, checkpoint, rủi ro.
 4. Chưa đạt G3 thì không gắn LIVE_READY. Không tự bật writer lên Sheet/MISA thật.
+## Tiến độ bổ sung 21/11 — sau khi nhận hai workbook giả
+
+- D2.1: Có bridge P1-MANIFEST -> scoped snapshot 4 CSV -> verify trước/sau -> M3 PowerShell. Legacy workflow CLI chưa buộc bridge; chỉ dùng bridge cho luồng niêm phong.
+- D3.1: Có 20 kịch bản giả, rule engine kiểu tình huống đã gắn nhãn, 16 cột staging review/đối chiếu draft và test hồi quy. Không có giao diện phê duyệt có danh tính.
+- Chưa coi D2/D3 hoàn thiện trên Sheet thật. Mẫu workbook đã có công thức kiểm trùng và tổng; adapter phải bảo toàn công thức, lọc/sort và quyền trước G4.
+- 20 kết quả kỳ vọng và R01–R10 vẫn cần người phụ trách nghiệp vụ xác nhận.
