@@ -9,3 +9,8 @@ Không commit dữ liệu cá nhân, sao kê, chữ ký, khóa truy cập, sessi
 Không tự xoay vòng tài khoản Plus để né hạn mức. Báo cáo đúng test thực đã chạy/chưa chạy.
 
 Bộ ca thu chi D2/D3 có kết quả GIẢ chưa được người phụ trách xác nhận. READY_FOR_OWNER không phải APPROVED. Không tự ghi Nhật ký, không chép nguyên workbook hoặc file chứa thông tin cá nhân lên repo Public. Luồng M3 niêm phong dùng m3_p1_bridge.py; gọi thẳng workflow.ps1 là đường hồi quy cũ, không được coi là P1-verified.
+
+M3 workflow.ps1 direct invocations require P1 seal. For synthetic regression
+tests only, -LegacyRegressionTest is restricted to workflow-test-* fixtures.
+New review-only entrypoint: staging/demo/cash_review_flow.py; it does not
+grant approval, read original photos or write any actual ledger.

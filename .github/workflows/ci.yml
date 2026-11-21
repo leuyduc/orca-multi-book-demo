@@ -23,6 +23,7 @@ jobs:
       - run: python staging/demo/pilot-cash/test_pilot_cash_demo.py
       - run: python staging/demo/pilot-cash/test_case20_engine.py
       - run: python staging/demo/test_m3_p1_bridge.py
+      - run: python staging/demo/test_cash_review_flow.py
   windows-workflow:
     runs-on: windows-latest
     steps:
